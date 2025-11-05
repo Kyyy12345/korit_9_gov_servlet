@@ -27,27 +27,21 @@ public class UserServlet extends HttpServlet {
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         // username == "test"
         // 찾으면 User객체 응답(200), 못 찾으면 해당 username은 존재하지 않습니다.(404)
-        /*  req.getMethod();
-        boolean isUsername = false;
-        if (!req.getParameter("username").equals("test")) {
-            System.out.println("username은 존재하지 않습니다.");
-        }
-        resp.setStatus(200);*/
         req.setCharacterEncoding(StandardCharsets.UTF_8.name());
-        List<User> foundUsers = users.stream().filter(user -> user.getUsername().equals(req.getParameter("username")))
+        List<User> foundUsers = users.stream()
+                .filter(user -> user.getUsername().equals(req.getParameter("username")))
                 .toList();
 
         User foundUser = foundUsers.isEmpty() ? null : foundUsers.get(0);
+
+        resp.setCharacterEncoding(StandardCharsets.UTF_8.name());
         if (Objects.isNull(foundUser)) {
-            resp.setCharacterEncoding(StandardCharsets.UTF_8.name());
             resp.setStatus(HttpServletResponse.SC_NOT_FOUND);
             resp.getWriter().println("해당 username은 존재하지 않습니다.");
             return;
         }
-
-        resp.setCharacterEncoding(StandardCharsets.UTF_8.name());
         resp.getWriter().println(foundUser);
-        //System.out.println(isUsername);
+
     }
 
     @Override
@@ -57,58 +51,64 @@ public class UserServlet extends HttpServlet {
         String password = req.getParameter("password");
         String name = req.getParameter("name");
         String email = req.getParameter("email");
-
-        User user1 = new User();
-        user1.setUsername("username");
-        user1.setPassword("password");
-        user1.setName("name");
-        user1.setEmail("email");
-
-        user1 = User.builder()
-                .username(username)
-                        .password(password)
-                                .name(name)
-                                        .email(email)
-                                                .build();
-
-        User user2 = new User();
-        user2.setName(req.getParameter("name"));
-        user2.setPassword(req.getParameter("password"));
-        user2.setName(req.getParameter("name"));
-        user2.setEmail(req.getParameter("email"));
-
-        users.add(new User(req.getParameter("name"), req.getParameter("password"), req.getParameter("name")
-                , req.getParameter("email")));
+        String phone = req.getParameter("phone");
 
 
 
-        users.add(user1);
+        User user = new User();
+        user.setUsername(username); // user.setUsername(req.getParameter("username"));
+        user.setPassword(password);
+        user.setName(name);
+        user.setEmail(email);
+        user.setPhone(phone);
+
+//        User user = new User(username, password, name, email);
+
+//        User user = User.builder()
+//                .username(username)
+//                .password(password)
+//                .name(name)
+//                .email(email)
+//                .build();
+
+        Map<String, String> error = validUser(user);
+
+        resp.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        if (!error.isEmpty()) {
+            resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            resp.getWriter().println(error);
+            return;
+        }
+
+        users.add(user);
         System.out.println(users);
         resp.setStatus(HttpServletResponse.SC_OK);
         resp.getWriter().println("사용자 등록 완료");
-
-
-
-        resp.setCharacterEncoding(StandardCharsets.UTF_8.name());
-        resp.setContentType("text/html");
-        PrintWriter printWriter = resp.getWriter();
-        printWriter.println(users.add(user1));
-        System.out.println(users);
-
-
-        @AllArgsConstructor
-        class ValidException extends RuntimeException {
-            Map<String, String> error;
-        }
-
-
-
-
-
     }
 
-    private boolean isValid(String str) {
-        if (str == null) return false;
-        return !str.isBlank();
+    private Map<String, String> validUser(User user) {
+        Map<String, String> error = new HashMap<>();
+
+        Arrays.stream(user.getClass().getDeclaredFields()).forEach(f -> {
+            f.setAccessible(true);
+            String fieldName = f.getName();
+            System.out.println(fieldName);
+            try {
+                Object fieldValue = f.get(user);
+                System.out.println(fieldValue);
+                if (Objects.isNull(fieldValue)) {
+                    throw new RuntimeException();
+                }
+                if (Objects.toString(fieldValue).isBlank()) {
+                    throw new RuntimeException();
+                }
+            } catch (IllegalAccessException e) {
+                System.out.println("필드에 접근할 수 없습니다.");
+            } catch (RuntimeException e) {
+                error.put(fieldName, "빈 값일 수 없습니다.");
+            }
+        });
+
+        return error;
     }
 }
